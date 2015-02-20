@@ -15,7 +15,8 @@ class Histogram(ctypes.Structure):
 class Stats(ctypes.Structure):
   _fields_ = [(name, ctypes.c_uint) for name in (
       'parse_time_us', 'traversal_time_us',
-      'allocations', 'frees', 'bytes_allocated', 'frees_during_parsing',
+      'allocations', 'frees', 'bytes_allocated', 'bytes_freed',
+      'high_water_mark', 'bytes_freed_during_parsing',
       'nodes', 'elements', 'text', 'whitespace', 'cdata', 'comments',
       'parser_inserted', 'reconstructed_formatting_element',
       'adoption_agency_cloned', 'adoption_agency_moved', 'foster_parented')
@@ -43,7 +44,8 @@ def print_single_page_stats(text, stats):
 
   print_stat('allocations', stats)
   print_stat('bytes_allocated', stats)
-  print_stat('frees_during_parsing', stats)
+  print_stat('high_water_mark', stats)
+  print_stat('bytes_freed_during_parsing', stats)
   print('')
 
   print_stat('elements', stats)

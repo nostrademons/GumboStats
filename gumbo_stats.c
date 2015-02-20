@@ -17,6 +17,7 @@ extern "C" {
 #endif
 
 #include <assert.h>
+#include <malloc.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,7 +37,9 @@ typedef struct {
   unsigned int allocations;
   unsigned int frees;
   unsigned int bytes_allocated;
-  unsigned int frees_during_parsing;
+  unsigned int bytes_freed;
+  unsigned int high_water_mark;
+  unsigned int bytes_freed_during_parsing;
 
   unsigned int nodes;
   unsigned int elements;
@@ -94,12 +97,14 @@ static void* stat_collecting_malloc(void* userdata, size_t size) {
   GumboStats* stats = (GumboStats*) userdata;
   stats->allocations += 1;
   stats->bytes_allocated += size;
+  set_max(stats->bytes_allocated - stats->bytes_freed, &stats->high_water_mark);
   return malloc(size);
 }
 
 static void stat_collecting_free(void* userdata, void* obj) {
   GumboStats* stats = (GumboStats*) userdata;
   stats->frees += 1;
+  stats->bytes_freed += malloc_usable_size(obj);
   free(obj);
 }
 
@@ -226,7 +231,7 @@ void parse_stats(const char* input, GumboStats* stats) {
     &options, input, strlen(input));
   clock_t end_time = clock();
   stats->parse_time_us = 1000000 * (end_time - start_time) / CLOCKS_PER_SEC;
-  stats->frees_during_parsing = stats->frees;
+  stats->bytes_freed_during_parsing = stats->bytes_freed;
 
   GumboMax max;
   memset(&max, 0, sizeof(GumboMax));
