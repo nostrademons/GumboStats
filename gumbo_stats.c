@@ -185,8 +185,8 @@ void collect_stats(GumboNode* node, GumboStats* stats) {
     case GUMBO_NODE_TEMPLATE:
       {
         GumboElement* elem = &node->v.element;
-        //incr_histogram(elem->children.length, &stats->child_histogram);
-        //incr_histogram(elem->attributes.length, &stats->attribute_histogram);
+        incr_histogram(elem->children.length, &stats->child_histogram);
+        incr_histogram(elem->attributes.length, &stats->attribute_histogram);
 
         ++stats->elements;
 
@@ -249,6 +249,14 @@ void parse_stats(const char* input, GumboStats* stats) {
 
   collect_stats(output->document, stats);
   gumbo_destroy_output(&options, output);
+}
+
+void destroy_stats(GumboStats* stats) {
+  free(stats->child_histogram.data);
+  free(stats->text_histogram.data);
+  free(stats->attribute_histogram.data);
+  free(stats->attribute_name_histogram.data);
+  free(stats->attribute_value_histogram.data);
 }
 
 static void read_file(FILE* fp, char** output) {
