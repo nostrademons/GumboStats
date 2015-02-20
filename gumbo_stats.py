@@ -29,13 +29,21 @@ _parse_stats.restype = None
 def print_stat(key, obj):
   print('%s = %d' % (key, getattr(obj, key)))
 
-def print_histogram_max(key, obj):
-  print('Max %s = %d' % (key, getattr(obj, key + '_histogram').length - 1))
+def print_histogram(key, obj):
+  histogram = getattr(obj, key + '_histogram')
+  print('Max %s = %d.  |%s|' % (
+      key, histogram.length - 1,
+      ' '.join(str(val) for val in histogram.data[:10])))
 
 def print_single_page_stats(text, stats):
   print('Text length = %d' % len(text))
   print_stat('parse_time_us', stats)
   print_stat('traversal_time_us', stats)
+  print('')
+
+  print_stat('allocations', stats)
+  print_stat('bytes_allocated', stats)
+  print_stat('frees_during_parsing', stats)
   print('')
 
   print_stat('elements', stats)
@@ -44,11 +52,12 @@ def print_single_page_stats(text, stats):
   print_stat('cdata', stats)
   print_stat('comments', stats)
   print('')
-  print_histogram_max('child', stats)
-  print_histogram_max('text', stats)
-  print_histogram_max('attribute', stats)
-  print_histogram_max('attribute_name', stats)
-  print_histogram_max('attribute_value', stats)
+
+  print_histogram('child', stats)
+  print_histogram('text', stats)
+  print_histogram('attribute', stats)
+  print_histogram('attribute_name', stats)
+  print_histogram('attribute_value', stats)
 
 def parse(text):
   stats = Stats()
