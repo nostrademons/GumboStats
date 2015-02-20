@@ -16,10 +16,17 @@
 extern "C" {
 #endif
 
+#include "assert.h"
 #include "stdlib.h"
+#include "stdio.h"
 #include "string.h"
 #include "gumbo.h"
 #include "time.h"
+
+typedef struct {
+  unsigned int length;
+  unsigned int** data;
+} Histogram;
 
 typedef struct {
   unsigned int parse_time_us;
@@ -43,11 +50,11 @@ typedef struct {
   unsigned int adoption_agency_moved;
   unsigned int foster_parented;
 
-  GumboVector child_histogram;
-  GumboVector text_histogram;
-  GumboVector attribute_histogram;
-  GumboVector attribute_name_histogram;
-  GumboVector attribute_value_histogram;
+  Histogram child_histogram;
+  Histogram text_histogram;
+  Histogram attribute_histogram;
+  Histogram attribute_name_histogram;
+  Histogram attribute_value_histogram;
 } GumboStats;
 
 typedef struct {
@@ -58,20 +65,22 @@ typedef struct {
   unsigned int attribute_value;
 } GumboMax;
 
-inline void set_max(unsigned int new_val, unsigned int* current) {
+static inline void set_max(unsigned int new_val, unsigned int* current) {
   *current = new_val > *current ? new_val : *current;
 }
 
-inline void incr_histogram(unsigned int val, GumboVector* histogram) {
-  ++histogram->data[val];
+static inline void incr_histogram(unsigned int val, Histogram* histogram) {
+  assert(val < histogram->length);
+  ++(histogram->data[val]);
 }
 
 // gumbo_vector_init isn't exposed publicly, and in any case we want to avoid
 // going through the allocator when we initialize our histograms so we don't
 // pollute our allocation stats.
-inline void stat_vector_init(unsigned int size, GumboVector* vector) {
+static inline void histogram_init(unsigned int size, Histogram* vector) {
   vector->length = size + 1;
-  vector->data = malloc(sizeof(void*) * vector->length);
+  vector->data = malloc(sizeof(unsigned int) * vector->length);
+  memset(vector->data, 0, vector->length);
 }
 
 // Memory allocation functions
@@ -200,7 +209,7 @@ void collect_stats(GumboNode* node, GumboStats* stats) {
   }
 }
 
-void parse(const char* input, GumboStats* stats) {
+void parse_stats(const char* input, GumboStats* stats) {
   memset(stats, 0, sizeof(GumboStats));
   GumboOptions options;
   options.allocator = stat_collecting_malloc;
@@ -212,21 +221,29 @@ void parse(const char* input, GumboStats* stats) {
     &options, input, strlen(input));
   clock_t end_time = clock();
   stats->parse_time_us = 1000000 * (end_time - start_time) / CLOCKS_PER_SEC;
+  stats->frees_during_parsing = stats->frees;
 
   GumboMax max;
+  memset(&max, 0, sizeof(GumboMax));
   start_time = clock();
   find_max(output->document, &max);
   end_time = clock();
   stats->traversal_time_us =
       1000000 * (end_time - start_time) / CLOCKS_PER_SEC;
 
-  stat_vector_init(max.children, &stats->child_histogram);
-  stat_vector_init(max.text, &stats->text_histogram);
-  stat_vector_init(max.attribute, &stats->attribute_histogram);
-  stat_vector_init(max.attribute_name, &stats->attribute_name_histogram);
-  stat_vector_init(max.attribute_value, &stats->attribute_value_histogram);
+  histogram_init(max.children, &stats->child_histogram);
+  histogram_init(max.text, &stats->text_histogram);
+  histogram_init(max.attribute, &stats->attribute_histogram);
+  histogram_init(max.attribute_name, &stats->attribute_name_histogram);
+  histogram_init(max.attribute_value, &stats->attribute_value_histogram);
 
   collect_stats(output->document, stats);
+  gumbo_destroy_output(&options, output);
+}
+
+int main(int argc, char** argv) {
+  GumboStats stats;
+  parse_stats("<div>Test</div>", &stats);
 }
 
 #ifdef __cplusplus
