@@ -16,16 +16,17 @@
 extern "C" {
 #endif
 
-#include "assert.h"
-#include "stdlib.h"
-#include "stdio.h"
-#include "string.h"
+#include <assert.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <time.h>
 #include "gumbo.h"
-#include "time.h"
 
 typedef struct {
   unsigned int length;
-  unsigned int** data;
+  unsigned int* data;
 } Histogram;
 
 typedef struct {
@@ -70,8 +71,12 @@ static inline void set_max(unsigned int new_val, unsigned int* current) {
 }
 
 static inline void incr_histogram(unsigned int val, Histogram* histogram) {
-  assert(val < histogram->length);
-  ++(histogram->data[val]);
+  assert(histogram->data != NULL);
+  if (val >= histogram->length || val < 0) {
+    printf("Value %d out of histogram size %d", val, histogram->length);
+    return;
+  }
+  ++histogram->data[val];
 }
 
 // gumbo_vector_init isn't exposed publicly, and in any case we want to avoid
@@ -80,7 +85,7 @@ static inline void incr_histogram(unsigned int val, Histogram* histogram) {
 static inline void histogram_init(unsigned int size, Histogram* vector) {
   vector->length = size + 1;
   vector->data = malloc(sizeof(unsigned int) * vector->length);
-  memset(vector->data, 0, vector->length);
+  memset(vector->data, 0, sizeof(unsigned int) * vector->length);
 }
 
 // Memory allocation functions
@@ -175,8 +180,8 @@ void collect_stats(GumboNode* node, GumboStats* stats) {
     case GUMBO_NODE_TEMPLATE:
       {
         GumboElement* elem = &node->v.element;
-        incr_histogram(elem->children.length, &stats->child_histogram);
-        incr_histogram(elem->attributes.length, &stats->attribute_histogram);
+        //incr_histogram(elem->children.length, &stats->child_histogram);
+        //incr_histogram(elem->attributes.length, &stats->attribute_histogram);
 
         ++stats->elements;
 
@@ -211,7 +216,7 @@ void collect_stats(GumboNode* node, GumboStats* stats) {
 
 void parse_stats(const char* input, GumboStats* stats) {
   memset(stats, 0, sizeof(GumboStats));
-  GumboOptions options;
+  GumboOptions options = kGumboDefaultOptions;
   options.allocator = stat_collecting_malloc;
   options.deallocator = stat_collecting_free;
   options.userdata = stats;
@@ -241,9 +246,38 @@ void parse_stats(const char* input, GumboStats* stats) {
   gumbo_destroy_output(&options, output);
 }
 
+static void read_file(FILE* fp, char** output) {
+  struct stat filestats;
+  int fd = fileno(fp);
+  fstat(fd, &filestats);
+  int length = filestats.st_size;
+  *output = malloc(length + 1);
+  int start = 0;
+  int bytes_read;
+  while ((bytes_read = fread(*output + start, 1, length - start, fp))) {
+    start += bytes_read;
+  }
+  (*output)[length] = '\0';
+}
+
 int main(int argc, char** argv) {
+  if (argc != 2) {
+    printf("Usage: gumbo_stats <html filename>.\n");
+    exit(EXIT_FAILURE);
+  }
+  const char* filename = argv[1];
+
+  FILE* fp = fopen(filename, "r");
+  if (!fp) {
+    printf("File %s not found!\n", filename);
+    exit(EXIT_FAILURE);
+  }
+
+  char* input;
+  read_file(fp, &input);
   GumboStats stats;
-  parse_stats("<div>Test</div>", &stats);
+  parse_stats(input, &stats);
+  printf("Elements = %d\n", stats.elements);
 }
 
 #ifdef __cplusplus
