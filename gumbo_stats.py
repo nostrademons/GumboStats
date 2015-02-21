@@ -138,7 +138,8 @@ class WARCStats(object):
       label = '%s / %s' % (numerator, denominator)
       numerators = getattr(self, numerator)
       denominators = getattr(self, denominator)
-      values = [float(a) / float(b) for a, b in zip(numerators, denominators)]
+      values = [float(a) / float(b) for a, b in zip(numerators, denominators)
+          if b != 0]
       return label, values
 
     print_doc_average('parse_time')
@@ -159,7 +160,7 @@ class WARCStats(object):
     def print_histogram(label):
       value = getattr(self, label)
       total = numpy.sum(value)
-      bins = range(0, total, total / 10)
+      bins = range(0, total, (total + 1) / 10)
       print('')
       print_doc_average(label, value)
       print(' '.join(str(val) for val in value[:16]))
