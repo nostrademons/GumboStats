@@ -160,9 +160,9 @@ class WARCStats(object):
     def print_histogram(label):
       value = getattr(self, label)
       total = numpy.sum(value)
-      bins = range(0, total, (total + 1) / 10)
+      bins = range(1, total, total / 10)
       print('')
-      print_doc_average(label, value)
+      print('%s: total=%d, max=%d' % (label, total, len(value)))
       print(' '.join(str(val) for val in value[:16]))
       print(' '.join(str(val) for val in
           numpy.digitize(bins, numpy.cumsum(value))))
@@ -182,6 +182,7 @@ def parse_warc(filename):
   warc_stats = WARCStats()
   warcfile = warc.WARCFile(fileobj=gzip.GzipFile(fileobj=open(filename, 'rb')))
   warcfile.read_record()  # Skip warcinfo
+  num_records = 0
   while 1:
     # Request
     if warcfile.read_record() is None:
@@ -189,6 +190,7 @@ def parse_warc(filename):
     # Body
     record = warcfile.read_record()
     headers, body = record.payload.read().split('\r\n\r\n', 1)
+    num_records += 1
     # Metadata
     warcfile.read_record()
 
@@ -197,6 +199,7 @@ def parse_warc(filename):
     warc_stats.record_stats(len(body), stats)
     _destroy_stats(stats)
 
+  print('Num document = %d' % num_records)
   warc_stats.print_stats()
 
 def parse_file(filename):

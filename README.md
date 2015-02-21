@@ -70,34 +70,33 @@ nanoseconds/node.  As a very rough estimate, for each K of document length,
 it'll generate about 27 nodes, take 70us to parse, 1us to traverse, and
 allocate about 10K, about 5K of which is still in use after parsing completes.
 
-    children: mean=254310.58, median=0.00, 95th%=30.45, max=22662277.00
-    8161441 22662277 2234792 1003 20 520 8 191 3 39 5 20 2 9 3 8
-    0 0 0 1 1 1 1 1 1 1 39
+children: total=33060376, max=130
+8161441 22662277 2234792 1003 20 520 8 191 3 39 5 20 2 9 3 8
+0 0 0 1 1 1 1 1 1 1 39
 
-    text: mean=26.69, median=0.00, 95th%=0.00, max=106986.00
-    70865 106986 15425 16247 15676 420 226 106 46 99 122 93 125 90 68 60
-    0 0 0 0 1 1 1 1 2 3
+text: total=227410, max=8522
+70865 106986 15425 16247 15676 420 226 106 46 99 122 93 125 90 68 60
+0 0 0 0 1 1 1 1 2 3
 
-    attribute: mean=968993.27, median=97.00, 95th%=5327861.50, max=10614778.00
-    10614778 40945 1811 703 590 97 1 0 0 0 1
-    0 0 0 0 0 0 0 0 0 0 5
+attribute: total=10658926, max=11
+10614778 40945 1811 703 590 97 1 0 0 0 1
+0 0 0 0 0 0 0 0 0 0 5
 
-    attribute_name: mean=3015.61, median=58.50, 95th%=12815.25, max=25612.00
-    0 28 8071 10557 25612 7924 1185 456 131 87 30 196 0 1 0 1
-    1 2 3 3 4 4 4 4 4 5 17
+attribute_name: total=54281, max=18
+0 28 8071 10557 25612 7924 1185 456 131 87 30 196 0 1 0 1
+1 2 3 3 4 4 4 4 4 5
 
-    attribute_value: mean=3829.08, median=0.00, 95th%=241.40, max=1475279.00
-    1475279 3173 3765 8236 5134 6318 7624 3410 4649 821 757 554 931 390 343 858
-    0 0 0 0 0 0 0 0 0 0 308
+attribute_value: total=1527803, max=399
+1475279 3173 3765 8236 5134 6318 7624 3410 4649 821 757 554 931 390 343 858
+0 0 0 0 0 0 0 0 0 0 308
 
 These are histograms of the number of children per node, size of text nodes
 (also including doctype strings), number of attributes per node, size of
 attribute names, and size of attribute values.  The first line is some basic
-statistical information; in this case, it just confirms what we suspected, that
-the distributions are very long-tail power-laws.  The second line contains
-absolute counts for the first 16 bins in the distribution, so about 8 million
-nodes had no children at all, 22 million had one, etc.  The third line are
-cumulative deciles (actually 9% increments); for example, 18% of attribute names
-can fit in 2-character buffer, 45% can fit in a 4 characters, 82% in 5
-characters, but to get to 91% you need a 17-character buffer, and 100% would be
-25,612.
+statistical information, including the total number of samples and the maximum
+value.  The second line contains absolute counts for the first 16 bins in the
+distribution, so eg. about 8 million nodes had no children at all, 22 million
+had one, etc.  The third line are cumulative deciles (the first being the '0th
+decile', i.e. all samples can fit in it); for example, 10% of attribute names
+can fit in 2-character buffer, 80% can fit in a 4 characters, 90% in 5
+characters, but to get to 100% you need an 18-character buffer.
