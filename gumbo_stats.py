@@ -18,8 +18,9 @@ class Histogram(ctypes.Structure):
 class Stats(ctypes.Structure):
   _fields_ = [(name, ctypes.c_uint) for name in (
       'parse_time_us', 'traversal_time_us',
-      'allocations', 'frees', 'bytes_allocated', 'bytes_freed',
-      'high_water_mark', 'bytes_freed_during_parsing',
+      'allocations', 'reallocs', 'frees',
+      'bytes_allocated', 'bytes_realloced', 'bytes_freed',
+      'realloc_savings', 'high_water_mark', 'bytes_freed_during_parsing',
       'nodes', 'elements', 'text', 'whitespace', 'cdata', 'comments',
       'parser_inserted', 'reconstructed_formatting_element',
       'adoption_agency_cloned', 'adoption_agency_moved', 'foster_parented')
@@ -94,7 +95,10 @@ class WARCStats(object):
     self.parse_time = []
     self.traversal_time = []
     self.allocations = []
+    self.reallocs = []
     self.bytes_allocated = []
+    self.bytes_realloced = []
+    self.realloc_savings = []
     self.high_water_mark = []
     self.num_nodes = []
     self.doc_length = []
@@ -109,7 +113,10 @@ class WARCStats(object):
     self.parse_time.append(stats.parse_time_us)
     self.traversal_time.append(stats.traversal_time_us * 1000)
     self.allocations.append(stats.allocations)
+    self.reallocs.append(stats.reallocs)
     self.bytes_allocated.append(stats.bytes_allocated)
+    self.bytes_realloced.append(stats.bytes_realloced)
+    self.realloc_savings.append(stats.realloc_savings)
     self.high_water_mark.append(stats.high_water_mark)
     self.num_nodes.append(stats.nodes)
     self.doc_length.append(text_length / 1000)
@@ -145,7 +152,10 @@ class WARCStats(object):
     print_doc_average('parse_time')
     print_doc_average('traversal_time')
     print_doc_average('allocations')
+    print_doc_average('reallocs')
     print_doc_average('bytes_allocated')
+    print_doc_average('bytes_realloced')
+    print_doc_average('realloc_savings')
     print_doc_average('high_water_mark')
     print_doc_average('num_nodes')
     print('')
@@ -154,6 +164,8 @@ class WARCStats(object):
     print_doc_average(*ratio('parse_time', 'doc_length'))
     print_doc_average(*ratio('traversal_time', 'num_nodes'))
     print_doc_average(*ratio('bytes_allocated', 'high_water_mark'))
+    print_doc_average(*ratio('bytes_realloced', 'bytes_allocated'))
+    print_doc_average(*ratio('realloc_savings', 'bytes_allocated'))
     print_doc_average(*ratio('high_water_mark', 'doc_length'))
     print_doc_average(*ratio('bytes_allocated', 'doc_length'))
 

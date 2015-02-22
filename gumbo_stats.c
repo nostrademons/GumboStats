@@ -35,9 +35,12 @@ typedef struct {
   unsigned int traversal_time_us;
 
   unsigned int allocations;
+  unsigned int reallocs;
   unsigned int frees;
   unsigned int bytes_allocated;
+  unsigned int bytes_realloced;
   unsigned int bytes_freed;
+  unsigned int realloc_savings;
   unsigned int high_water_mark;
   unsigned int bytes_freed_during_parsing;
 
@@ -93,16 +96,27 @@ static inline void histogram_init(unsigned int size, Histogram* vector) {
 
 // Memory allocation functions
 
-static void* stat_collecting_malloc(void* userdata, size_t size) {
-  GumboStats* stats = (GumboStats*) userdata;
-  stats->allocations += 1;
-  stats->bytes_allocated += size;
-  set_max(stats->bytes_allocated - stats->bytes_freed, &stats->high_water_mark);
-  return malloc(size);
+static GumboStats* current_stats;
+
+static void* stat_collecting_malloc(void* original, size_t size) {
+  GumboStats* stats = current_stats;
+  size_t original_size = malloc_usable_size(original);
+  void* obj = realloc(original, size);
+  if (obj == original) {
+    stats->reallocs += 1;
+    stats->bytes_realloced += size;
+    stats->realloc_savings += original_size;
+  } else {
+    stats->allocations += 1;
+    stats->bytes_allocated += size;
+  }
+  set_max(stats->bytes_allocated + stats->bytes_realloced
+      - stats->realloc_savings - stats->bytes_freed, &stats->high_water_mark);
+  return obj;
 }
 
-static void stat_collecting_free(void* userdata, void* obj) {
-  GumboStats* stats = (GumboStats*) userdata;
+static void stat_collecting_free(void* obj) {
+  GumboStats* stats = current_stats;
   stats->frees += 1;
   stats->bytes_freed += malloc_usable_size(obj);
   free(obj);
@@ -221,11 +235,11 @@ void collect_stats(GumboNode* node, GumboStats* stats) {
 
 void parse_stats(const char* input, GumboStats* stats) {
   memset(stats, 0, sizeof(GumboStats));
+  current_stats = stats;
+  gumbo_memory_set_allocator(stat_collecting_malloc);
+  gumbo_memory_set_free(stat_collecting_free);
   GumboOptions options = kGumboDefaultOptions;
-  options.allocator = stat_collecting_malloc;
-  options.deallocator = stat_collecting_free;
-  options.userdata = stats;
-  
+
   clock_t start_time = clock();
   GumboOutput* output = gumbo_parse_with_options(
     &options, input, strlen(input));
@@ -248,7 +262,7 @@ void parse_stats(const char* input, GumboStats* stats) {
   histogram_init(max.attribute_value, &stats->attribute_value_histogram);
 
   collect_stats(output->document, stats);
-  gumbo_destroy_output(&options, output);
+  gumbo_destroy_output(output);
 }
 
 void destroy_stats(GumboStats* stats) {
