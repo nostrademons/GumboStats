@@ -33,6 +33,7 @@ typedef struct {
 typedef struct {
   unsigned int parse_time_us;
   unsigned int traversal_time_us;
+  unsigned int out_of_memory;
 
   unsigned int allocations;
   unsigned int frees;
@@ -89,23 +90,6 @@ static inline void histogram_init(unsigned int size, Histogram* vector) {
   vector->length = size + 1;
   vector->data = malloc(sizeof(unsigned int) * vector->length);
   memset(vector->data, 0, sizeof(unsigned int) * vector->length);
-}
-
-// Memory allocation functions
-
-static void* stat_collecting_malloc(void* userdata, size_t size) {
-  GumboStats* stats = (GumboStats*) userdata;
-  stats->allocations += 1;
-  stats->bytes_allocated += size;
-  set_max(stats->bytes_allocated - stats->bytes_freed, &stats->high_water_mark);
-  return malloc(size);
-}
-
-static void stat_collecting_free(void* userdata, void* obj) {
-  GumboStats* stats = (GumboStats*) userdata;
-  stats->frees += 1;
-  stats->bytes_freed += malloc_usable_size(obj);
-  free(obj);
 }
 
 // First tree traversal; this just collects maximum vector lengths for
@@ -222,9 +206,6 @@ void collect_stats(GumboNode* node, GumboStats* stats) {
 void parse_stats(const char* input, GumboStats* stats) {
   memset(stats, 0, sizeof(GumboStats));
   GumboOptions options = kGumboDefaultOptions;
-  options.allocator = stat_collecting_malloc;
-  options.deallocator = stat_collecting_free;
-  options.userdata = stats;
   
   clock_t start_time = clock();
   GumboOutput* output = gumbo_parse_with_options(
@@ -248,6 +229,12 @@ void parse_stats(const char* input, GumboStats* stats) {
   histogram_init(max.attribute_value, &stats->attribute_value_histogram);
 
   collect_stats(output->document, stats);
+  stats->allocations = gumbo_arena_chunks_allocated();
+  stats->bytes_allocated = stats->allocations * 400000;
+  stats->high_water_mark = stats->bytes_allocated;
+  if (output->out_of_memory) {
+    stats->out_of_memory = 1;
+  }
   gumbo_destroy_output(&options, output);
 }
 

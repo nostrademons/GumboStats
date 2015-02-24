@@ -3,6 +3,7 @@ import gzip
 import numpy
 import os
 import sys
+import urlparse
 import warc
 
 _dll_file = os.path.join(
@@ -17,7 +18,7 @@ class Histogram(ctypes.Structure):
 
 class Stats(ctypes.Structure):
   _fields_ = [(name, ctypes.c_uint) for name in (
-      'parse_time_us', 'traversal_time_us',
+      'parse_time_us', 'traversal_time_us', 'out_of_memory',
       'allocations', 'frees', 'bytes_allocated', 'bytes_freed',
       'high_water_mark', 'bytes_freed_during_parsing',
       'nodes', 'elements', 'text', 'whitespace', 'cdata', 'comments',
@@ -50,6 +51,7 @@ def print_single_page_stats(text, stats):
   print_stat('traversal_time_us', stats)
   print('')
 
+  print_stat('out_of_memory', stats)
   print_stat('allocations', stats)
   print_stat('bytes_allocated', stats)
   print_stat('high_water_mark', stats)
@@ -93,6 +95,7 @@ class WARCStats(object):
   def __init__(self):
     self.parse_time = []
     self.traversal_time = []
+    self.out_of_memory = 0
     self.allocations = []
     self.bytes_allocated = []
     self.high_water_mark = []
@@ -108,6 +111,7 @@ class WARCStats(object):
   def record_stats(self, text_length, stats):
     self.parse_time.append(stats.parse_time_us)
     self.traversal_time.append(stats.traversal_time_us * 1000)
+    self.out_of_memory += stats.out_of_memory
     self.allocations.append(stats.allocations)
     self.bytes_allocated.append(stats.bytes_allocated)
     self.high_water_mark.append(stats.high_water_mark)
@@ -144,6 +148,7 @@ class WARCStats(object):
 
     print_doc_average('parse_time')
     print_doc_average('traversal_time')
+    print('out_of_memory: %d' % self.out_of_memory)
     print_doc_average('allocations')
     print_doc_average('bytes_allocated')
     print_doc_average('high_water_mark')
@@ -173,6 +178,15 @@ class WARCStats(object):
     print_histogram('attribute_name')
     print_histogram('attribute_value')
 
+def detect_charset(content_type):
+    try:
+        mime, charset = content_type.split('charset=')
+        # Strip off the ; and optional trailing space.
+        mime = mime.strip()[:-1]
+    except ValueError:
+        mime, charset = (content_type, 'ISO-8859-1')
+    return mime, charset
+
 def parse(text):
   stats = Stats()
   _parse_stats(text, ctypes.byref(stats))
@@ -190,14 +204,23 @@ def parse_warc(filename):
     # Body
     record = warcfile.read_record()
     headers, body = record.payload.read().split('\r\n\r\n', 1)
+    headers = dict(
+            line.split(': ', 1) for line in headers.split('\r\n')
+            if ': ' in line)
+    mime, charset = detect_charset(headers.get('Content-Type', 'text/html'))
     num_records += 1
+
     # Metadata
     warcfile.read_record()
 
     # Parsing
-    stats = parse(body)
-    warc_stats.record_stats(len(body), stats)
-    _destroy_stats(stats)
+    if mime == 'text/html':
+      try:
+        stats = parse(body.decode(charset, 'replace').encode('utf-8'))
+        warc_stats.record_stats(len(body), stats)
+        _destroy_stats(stats)
+      except LookupError:
+        pass
 
   print('Num document = %d' % num_records)
   warc_stats.print_stats()
