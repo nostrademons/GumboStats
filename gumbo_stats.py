@@ -208,7 +208,6 @@ def parse_warc(filename):
             line.split(': ', 1) for line in headers.split('\r\n')
             if ': ' in line)
     mime, charset = detect_charset(headers.get('Content-Type', 'text/html'))
-    num_records += 1
 
     # Metadata
     warcfile.read_record()
@@ -219,6 +218,7 @@ def parse_warc(filename):
         stats = parse(body.decode(charset, 'replace').encode('utf-8'))
         warc_stats.record_stats(len(body), stats)
         _destroy_stats(stats)
+        num_records += 1
       except LookupError:
         pass
 
