@@ -185,6 +185,15 @@ class WARCStats(object):
     print_histogram('attribute_name')
     print_histogram('attribute_value')
 
+def detect_charset(content_type):
+    try:
+        mime, charset = content_type.split('charset=')
+        # Strip off the ; and optional trailing space.
+        mime = mime.strip()[:-1]
+    except ValueError:
+        mime, charset = (content_type, 'ISO-8859-1')
+    return mime, charset
+
 def parse(text):
   stats = Stats()
   _parse_stats(text, ctypes.byref(stats))
@@ -202,14 +211,23 @@ def parse_warc(filename):
     # Body
     record = warcfile.read_record()
     headers, body = record.payload.read().split('\r\n\r\n', 1)
-    num_records += 1
+    headers = dict(
+            line.split(': ', 1) for line in headers.split('\r\n')
+            if ': ' in line)
+    mime, charset = detect_charset(headers.get('Content-Type', 'text/html'))
+
     # Metadata
     warcfile.read_record()
 
     # Parsing
-    stats = parse(body)
-    warc_stats.record_stats(len(body), stats)
-    _destroy_stats(stats)
+    if mime == 'text/html':
+      try:
+        stats = parse(body)
+        warc_stats.record_stats(len(body), stats)
+        _destroy_stats(stats)
+        num_records += 1
+      except LookupError:
+        pass
 
   print('Num document = %d' % num_records)
   warc_stats.print_stats()

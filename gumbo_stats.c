@@ -139,7 +139,6 @@ void find_max(GumboNode* node, GumboMax* max) {
         return;
       }
     case GUMBO_NODE_ELEMENT:
-    case GUMBO_NODE_TEMPLATE:
       {
         GumboElement* elem = &node->v.element;
         set_max(elem->children.length, &max->children);
@@ -196,7 +195,6 @@ void collect_stats(GumboNode* node, GumboStats* stats) {
         return;
       }
     case GUMBO_NODE_ELEMENT:
-    case GUMBO_NODE_TEMPLATE:
       {
         GumboElement* elem = &node->v.element;
         incr_histogram(elem->children.length, &stats->child_histogram);
