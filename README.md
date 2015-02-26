@@ -75,10 +75,10 @@ the OS reports).  These numbers are for v0.10.0 plus a patch or two; the arena
 implementation gives round numbers where everything is a multiple of
 ARENA_CHUNK_SIZE.
 
-  num_nodes / doc_length: mean=27.61, median=26.66, 95th%=44.51, max=240.00
-  parse_time / doc_length: mean=61.37, median=58.38, 95th%=87.22, max=434.88
-  traversal_time / num_nodes: mean=32.92, median=29.41, 95th%=54.72, max=1325.58
-  bytes_allocated / high_water_mark: mean=1.00, median=1.00, 95th%=1.00, max=1.00
+    num_nodes / doc_length: mean=27.61, median=26.66, 95th%=44.51, max=240.00
+    parse_time / doc_length: mean=61.37, median=58.38, 95th%=87.22, max=434.88
+    traversal_time / num_nodes: mean=32.92, median=29.41, 95th%=54.72, max=1325.58
+    bytes_allocated / high_water_mark: mean=1.00, median=1.00, 95th%=1.00, max=1.00
 
 These are key ratios.  doc_length is in units of a kilobyte to make the numbers
 easier to read, parse_time is in microseconds/K, traversal_time is in
@@ -86,25 +86,25 @@ nanoseconds/node.  As a very rough estimate, for each K of document length,
 it'll generate about 27 nodes, take 60us to parse, 1us to traverse, and
 allocate about 10K.
 
-  children: total=33060376, max=130
-  8161441 22662277 2234792 1003 20 520 8 191 3 39 5 20 2 9 3 8
-  0 0 0 1 1 1 1 1 1 1 39
+    children: total=33060376, max=130
+    8161441 22662277 2234792 1003 20 520 8 191 3 39 5 20 2 9 3 8
+    0 0 0 1 1 1 1 1 1 1 39
 
-  text: total=227410, max=8522
-  70865 106986 15425 16247 15676 420 226 106 46 99 122 93 125 90 68 60
-  0 0 0 0 1 1 1 1 2 3
+    text: total=227410, max=8522
+    70865 106986 15425 16247 15676 420 226 106 46 99 122 93 125 90 68 60
+    0 0 0 0 1 1 1 1 2 3
 
-  attribute: total=10658926, max=11
-  10614778 40945 1811 703 590 97 1 0 0 0 1
-  0 0 0 0 0 0 0 0 0 0 5
+    attribute: total=10658926, max=11
+    10614778 40945 1811 703 590 97 1 0 0 0 1
+    0 0 0 0 0 0 0 0 0 0 5
 
-  attribute_name: total=54281, max=18
-  0 28 8071 10557 25612 7924 1185 456 131 87 30 196 0 1 0 1
-  1 2 3 3 4 4 4 4 4 5
+    attribute_name: total=54281, max=18
+    0 28 8071 10557 25612 7924 1185 456 131 87 30 196 0 1 0 1
+    1 2 3 3 4 4 4 4 4 5
 
-  attribute_value: total=1527803, max=399
-  1475279 3173 3765 8236 5134 6318 7624 3410 4649 821 757 554 931 390 343 858
-  0 0 0 0 0 0 0 0 0 0 308
+    attribute_value: total=1527803, max=399
+    1475279 3173 3765 8236 5134 6318 7624 3410 4649 821 757 554 931 390 343 858
+    0 0 0 0 0 0 0 0 0 0 308
 
 These are histograms of the number of children per node, size of text nodes
 (also including doctype strings), number of attributes per node, size of
