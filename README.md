@@ -22,14 +22,48 @@ Then run the Python script from the same directory, under Python2.7:
 
 If the extension of the input file is 'warc.gz', it's assumed to be a WARC (Web Archive) file of the sort CommonCrawl or wget uses.  Otherwise, it's assumed to be a single HTML document.
 
-## Results
+## Summary Results
+
+The standard caveat on benchmarks applies: many of the speed numbers are
+approximate, there is significant noise in these, and you should benchmark the
+actual programs you intend to run on the actual hardware you intend to run them
+on.  These were done on an Intel Core i5-3230M with 4 cores (only one running
+the benchmarks, though, since they aren't multithreaded), running Ubuntu 14.10.
 
 tl;dr summary:
 
-* 
+* The corpus contains about 60K documents, median length 
+* With the arena branch (1.0.0 candidate), the median document took just under 3ms to parse and 800k memory used.  There is a long tail, with the 95th percentile at 12ms and 2.4M.  Progression by version:
+  * v0.9.1: 5.3ms, 163K used.
+  * v0.9.2: 3.9ms, 163K used.
+  * v0.9.3: 3.8ms, 173K used.
+  * v0.10.0: 3.5ms, 208K used.
+  * Using realloc & other memory fixes: 3.3ms, 215K used.
+* Traversal time is a tiny fraction (~1-2%) of parsing time.  This should reassure anyone worried about converting the GumboNode tree to their own data structures.
+* Changing the default buffer & vector sizes is a big win on memory, while being a wash on CPU.  Changing attributes from 4 >= 1 and stringbuffers from 10 >= 3 resulted in a reduction in median high-water-mark memory usage from 200K => 140K, with indistinguishable parse time.  Changing to attributes=0 reduced this further to 100K, with a slight increase in CPU time from additional reallocs.  * Adding a gumbo_stringbuffer_clear method instead of repeated init/destroy calls is another big win, saving roughly 5% on CPU and 10% on total bytes allocated.
+* Moving ownership of temporary buffers over to the final parse tree instead of doing a fresh allocation & copying was a big loss, costing about 5% in CPU, 25% in memory, and 50% in total bytes allocated.  The reason is that most strings in HTML documents are 1-2 characters long, so replacing them with a raw temporary buffer that starts at 3 characters and doubles ends up allocating much more.  (It works well with arenas, though, where an arena that's freed and one that is not have the same memory usage.)
+* Eliminating configurable memory allocators has no significant effect on
+  performance.  Apparently the indirection of going through a function pointer
+is negligible.  (Some time in the debugger seems to indicate that gcc can inline
+the default memory allocation functions since they're defined in the same
+compilation unit and never reset during parsing.)
+* Using realloc instead of malloc for growable buffers has limited effect.  With glibc malloc, the parser can re-use the same block of memory only about 10% of
+the time.  When it can, the savings are substantial (measured at ~75%, probably
+because re-use is more common with large blocks of memory).  However, newer
+mallocs like tcmalloc or jemalloc basically can't re-use anything, because they
+use a series of object pools that are sized as powers of two, so resizing a
+buffer automatically forces it into the next pool.  With jemalloc, there were a
+grand total of 6 successful reallocs in the corpus of 60,000 documents.
+* Arenas drastically reduce parsing time, but at the cost of increased memory usage.  In typical use, Gumbo allocates about 2x the memory of the final parse
+tree over the course of parsing.  This is the lower bound on effective arena
+memory usage; however, because arenas are allocated in large chunks, it's often
+more than that (we use a default of 800K, which is roughly 4x the baseline
+v0.9.3 memory usage).  Because the absolute numbers on memory usage are so low,
+however, I believe this is a good trade-off.
 
-These are sample results on one segment of the CommonCrawl corpus, ~100K
-documents, with explanation:
+## Result formatting
+
+More detailed notes & explanations of how the results are formatted.
 
     num_nodes: mean=1704.98, median=1204.00, 95th%=4800.15, max=91858.00
     parse_time: mean=4936.51, median=3395.50, 95th%=14145.60, max=167992.00
